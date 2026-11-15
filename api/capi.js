@@ -3,17 +3,27 @@
 // ---------- CONFIG ----------
 const PIXEL_ID = '1722486366340073';
 const ACCESS_TOKEN = process.env.META_ACCESS_TOKEN || 'EAAQEqfXEjY8BSzwZCnZA8ACUVt039GsmEVGBYx7fZBzBE2smHmd5VyTy32qGRf3C30NJBs3pV2dnK8hOiirXLQOQ5P0SMq4khftLwwz0IY6iSf57qsGkn4b7z18bLsPnbWr0DgXk07VeZB66HTYIMpqmZClaVoQ53kFmbEblv6knTBKm2pf9LuZAAzhFjMk9TqngZDZD';
-const TEST_EVENT_CODE = process.env.META_TEST_EVENT_CODE || '';  // sirf testing ke waqt set karein
-const ALLOWED_ORIGINS = ['https://yourdomain.com'];              // apna live domain
+const TEST_EVENT_CODE = process.env.META_TEST_EVENT_CODE || 'TEST46538';  // sirf testing ke waqt set karein
+const ALLOWED_ORIGINS = [
+  'https://dkstock-nine.vercel.app',
+  'https://yourdomain.com'
+];              // apna live domain
 const ALLOWED_EVENTS = ['Lead'];
 const GRAPH_VERSION = 'v21.0';
 // ----------------------------
 
 module.exports = async function handler(req, res) {
   const origin = req.headers.origin || '';
-  const originAllowed = ALLOWED_ORIGINS.includes(origin);
+  const host = req.headers.host || '';
+  // Vercel domain, same host, empty origin ya ALLOWED_ORIGINS ko allow karein
+  const isVercel = host.endsWith('.vercel.app') || origin.includes('.vercel.app');
+  const originAllowed = !origin || 
+    isVercel ||
+    (host && origin.includes(host)) || 
+    ALLOWED_ORIGINS.includes(origin) || 
+    ALLOWED_ORIGINS.some(o => origin.startsWith(o));
 
-  if (originAllowed) {
+  if (origin) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
   }
@@ -35,8 +45,21 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    // Body JSON (fetch) ya string (sendBeacon) dono ho sakti hai
-    let data = req.body;
+    // Agar Vercel ne req.body parse nahi kiya toh stream se data read karein
+    let rawBody = req.body;
+    if (rawBody === undefined || rawBody === null) {
+      rawBody = await new Promise((resolve) => {
+        let chunks = [];
+        req.on('data', chunk => chunks.push(chunk));
+        req.on('end', () => resolve(Buffer.concat(chunks).toString('utf-8')));
+        req.on('error', () => resolve(null));
+      });
+    }
+
+    let data = rawBody;
+    if (Buffer.isBuffer(data)) {
+      data = data.toString('utf-8');
+    }
     if (typeof data === 'string') {
       try {
         data = JSON.parse(data);
@@ -91,9 +114,9 @@ module.exports = async function handler(req, res) {
 
     if (!response.ok) {
       console.error('Meta CAPI error:', JSON.stringify(result));
-      return res.status(502).json({ status: 'error' });
+      return res.status(502).json({ status: 'error', details: result });
     }
-    return res.status(200).json({ status: 'ok' });
+    return res.status(200).json({ status: 'ok', events_received: result.events_received });
   } catch (err) {
     console.error('CAPI handler failed:', err);
     return res.status(500).json({ status: 'error' });

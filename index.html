@@ -252,24 +252,27 @@
                 fbc: getFbc()
             });
             try {
-                if (navigator.sendBeacon && navigator.sendBeacon(CAPI_ENDPOINT, body)) return;
+                // application/json Blob format taaki Vercel serverless request body ko 100% parse kar sake
+                var blob = new Blob([body], { type: 'application/json' });
+                if (navigator.sendBeacon && navigator.sendBeacon(CAPI_ENDPOINT, blob)) return;
+            } catch (e) { /* ignore blob error */ }
+
+            try {
                 fetch(CAPI_ENDPOINT, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'text/plain' },
+                    headers: { 'Content-Type': 'application/json' },
                     body: body,
                     keepalive: true
                 }).catch(function () {});
             } catch (e) { /* tracking fail ho to bhi redirect na ruke */ }
         }
 
-        // Lead ek session mein sirf ek baar (double click / dobara tap par duplicate nahi)
+        // Har click par event dispatch karein (testing aur accuracy ke liye)
         function trackLeadOnce() {
-            if (store('lead_sent') === '1') return;
-            store('lead_sent', '1');
             var eventId = newEventId();
             try {
                 if (typeof fbq === 'function') {
-                    fbq('track', 'Lead', {}, { eventID: eventId }); // same ID server ko bhi jaati hai (dedup)
+                    fbq('track', 'Lead', {}, { eventID: eventId }); // same ID browser aur server ko
                 }
             } catch (e) {}
             sendToServer('Lead', eventId);
