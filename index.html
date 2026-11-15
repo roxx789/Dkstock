@@ -1,23 +1,30 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en-IN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Market Learning & Analytics Hub</title>
-    
+    <meta name="description" content="Technical analysis and market learning community. Educational content only.">
+
+    <!-- Meta Pixel -->
     <script>
     !function(f,b,e,v,n,t,s)
     {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
     n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-    if(!f._fbq)f._fbq=n;_fbq.push=n;_fbq.loaded=!0;_fbq.version='2.0';
-    _fbq.queue=[];t=b.createElement(e);t.async=!0;
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
     t.src=v;s=b.getElementsByTagName(e)[0];
     s.parentNode.insertBefore(t,s)}(window, document,'script',
     'https://connect.facebook.net/en_US/fbevents.js');
-    
-    fbq('init', '1635305401957355'); 
+
+    fbq('init', '1635305401957355');
     fbq('track', 'PageView');
     </script>
+    <noscript>
+        <img height="1" width="1" style="display:none" alt=""
+             src="https://www.facebook.com/tr?id=1635305401957355&ev=PageView&noscript=1">
+    </noscript>
+
     <style>
         * {
             margin: 0;
@@ -93,15 +100,35 @@
             border: none;
             cursor: pointer;
             box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
-            transition: transform 0.2s, background-color 0.2s;
-            margin-bottom: 25px;
+            transition: transform 0.2s, background-color 0.2s, opacity 0.2s;
+            margin-bottom: 10px;
+            -webkit-tap-highlight-color: transparent;
         }
         .cta-btn:active {
             transform: scale(0.98);
         }
+        .cta-btn.is-loading {
+            opacity: 0.75;
+        }
+        .cta-note {
+            color: #94a3b8;
+            font-size: 11px;
+            margin-bottom: 14px;
+        }
+        .fallback {
+            display: none;
+            color: #cbd5e1;
+            font-size: 12px;
+            line-height: 1.5;
+            margin-bottom: 20px;
+        }
+        .fallback a {
+            color: #38bdf8;
+            font-weight: 600;
+        }
         .features-list {
             list-style: none;
-            margin-bottom: 25px;
+            margin: 11px 0 25px;
             text-align: left;
             padding-left: 15px;
         }
@@ -134,18 +161,25 @@
 
     <div class="container">
         <div class="profile-img-box">
-            <img src="profile.png" alt="Market Analytics Hub">
+            <img src="profile.png" alt="Market Analytics Hub" width="105" height="105">
         </div>
 
-        <h1>Gokul Chhabra Dil Se Trader 🔵
- </h1>
-        
+        <h1>Gokul Chhabra Dil Se Trader 🔵</h1>
+
         <div class="sub-title">Technical Analysis & Learning Community</div>
         <div class="tags">MARKET TRENDS · CHART PATTERNS · EDUCATIONAL INSIGHTS</div>
 
-        <button class="cta-btn" onclick="redirectToTelegram()">
+        <!-- Real link: JS band ho tab bhi kaam karega -->
+        <a class="cta-btn" id="joinBtn" href="https://t.me/+Rru-abFATts2NTA1" rel="noopener">
             Join Free Community Channel
-        </button>
+        </a>
+        <div class="cta-note">Telegram app zaroori hai · Button dabane ke baad "Join" par tap karein</div>
+
+        <div class="fallback" id="fallback">
+            Telegram nahi khula?
+            <a href="https://t.me/+Rru-abFATts2NTA1" rel="noopener">Yahan tap karein</a>
+            ya pehle Telegram app install karein.
+        </div>
 
         <ul class="features-list">
             <li>✓ Daily Market Trends & Studies</li>
@@ -163,20 +197,129 @@
     </div>
 
     <script>
-        function redirectToTelegram() {
-            // 1. Fire Meta Lead Event with your correct Pixel ID
-            if (typeof fbq !== 'undefined') {
-                fbq('track', 'Lead');
+    (function () {
+        // ---------- CONFIG ----------
+        var INVITE_HASH   = 'Rru-abFATts2NTA1';                 // t.me/+ ke baad wala hissa
+        var WEB_LINK      = 'https://t.me/+' + INVITE_HASH;     // fallback
+        var APP_LINK      = 'tg://join?invite=' + INVITE_HASH;  // seedha Telegram app
+        var CAPI_ENDPOINT = '';   // Server endpoint ho to yahan daalo, e.g. '/api/capi'. Khali = sirf Pixel.
+        var FALLBACK_MS   = 1500; // app na khule to itni der baad web link
+        // ----------------------------
+
+        var btn = document.getElementById('joinBtn');
+        var fallbackBox = document.getElementById('fallback');
+        var busy = false;
+
+        function getCookie(name) {
+            var m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+            return m ? decodeURIComponent(m[1]) : '';
+        }
+
+        function store(key, value) {
+            try {
+                if (value === undefined) return sessionStorage.getItem(key);
+                sessionStorage.setItem(key, value);
+            } catch (e) { /* storage blocked: ignore */ }
+            return null;
+        }
+
+        // _fbc cookie na ho to URL ke fbclid se banao (in-app browsers mein aksar cookie nahi hoti)
+        function getFbc() {
+            var c = getCookie('_fbc');
+            if (c) return c;
+            var saved = store('fbc_fallback');
+            if (saved) return saved;
+            var m = window.location.search.match(/[?&]fbclid=([^&#]+)/);
+            if (!m) return '';
+            var built = 'fb.1.' + Date.now() + '.' + decodeURIComponent(m[1]);
+            store('fbc_fallback', built);
+            return built;
+        }
+
+        function newEventId() {
+            if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+            return 'ev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 12);
+        }
+
+        function sendToServer(eventName, eventId) {
+            if (!CAPI_ENDPOINT) return;
+            var body = JSON.stringify({
+                event_name: eventName,
+                event_id: eventId,
+                event_source_url: window.location.href,
+                fbp: getCookie('_fbp'),
+                fbc: getFbc()
+            });
+            try {
+                if (navigator.sendBeacon && navigator.sendBeacon(CAPI_ENDPOINT, body)) return;
+                fetch(CAPI_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: body,
+                    keepalive: true
+                }).catch(function () {});
+            } catch (e) { /* tracking fail ho to bhi redirect na ruke */ }
+        }
+
+        // Lead ek session mein sirf ek baar (double click / dobara tap par duplicate nahi)
+        function trackLeadOnce() {
+            if (store('lead_sent') === '1') return;
+            store('lead_sent', '1');
+            var eventId = newEventId();
+            try {
+                if (typeof fbq === 'function') {
+                    fbq('track', 'Lead', {}, { eventID: eventId }); // same ID server ko bhi jaati hai (dedup)
+                }
+            } catch (e) {}
+            sendToServer('Lead', eventId);
+        }
+
+        function openTelegram() {
+            var timer = null;
+
+            function cleanup() {
+                if (timer) { clearTimeout(timer); timer = null; }
+                document.removeEventListener('visibilitychange', onHide);
+                window.removeEventListener('pagehide', cleanup);
+                window.removeEventListener('blur', cleanup);
+            }
+            function onHide() {
+                if (document.hidden) cleanup(); // app khul gaya, fallback ki zaroorat nahi
             }
 
-            // 2. Telegram Link Configured
-            var telegramLink = "https://t.me/+Rru-abFATts2NTA1";
+            document.addEventListener('visibilitychange', onHide);
+            window.addEventListener('pagehide', cleanup);
+            window.addEventListener('blur', cleanup);
 
-            // 3. User Redirection
-            setTimeout(function() {
-                window.location.href = telegramLink;
-            }, 300);
+            // App nahi khula to web link par bhejo
+            timer = setTimeout(function () {
+                cleanup();
+                fallbackBox.style.display = 'block';
+                if (!document.hidden) window.location.href = WEB_LINK;
+            }, FALLBACK_MS);
+
+            // Pehle seedha app kholne ki koshish
+            window.location.href = APP_LINK;
         }
+
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (busy) return;
+            busy = true;
+            btn.classList.add('is-loading');
+
+            trackLeadOnce();
+
+            // Pixel request nikalne ke liye chhota sa gap
+            setTimeout(openTelegram, 250);
+
+            // Wapas aane par button dobara chale
+            setTimeout(function () {
+                busy = false;
+                btn.classList.remove('is-loading');
+            }, 3000);
+        });
+    })();
     </script>
 
 </body>
