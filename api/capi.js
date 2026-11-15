@@ -3,7 +3,7 @@
 // ---------- CONFIG ----------
 const PIXEL_ID = '1722486366340073';
 const ACCESS_TOKEN = process.env.META_ACCESS_TOKEN || 'EAAQEqfXEjY8BSzwZCnZA8ACUVt039GsmEVGBYx7fZBzBE2smHmd5VyTy32qGRf3C30NJBs3pV2dnK8hOiirXLQOQ5P0SMq4khftLwwz0IY6iSf57qsGkn4b7z18bLsPnbWr0DgXk07VeZB66HTYIMpqmZClaVoQ53kFmbEblv6knTBKm2pf9LuZAAzhFjMk9TqngZDZD';
-const TEST_EVENT_CODE = process.env.META_TEST_EVENT_CODE || 'TEST46538';  // sirf testing ke waqt set karein
+const TEST_EVENT_CODE = process.env.META_TEST_EVENT_CODE || '';  // sirf testing ke waqt set karein
 const ALLOWED_ORIGINS = [
   'https://dkstock-nine.vercel.app',
   'https://yourdomain.com'
