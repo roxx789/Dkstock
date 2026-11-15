@@ -17,12 +17,12 @@
     s.parentNode.insertBefore(t,s)}(window, document,'script',
     'https://connect.facebook.net/en_US/fbevents.js');
 
-    fbq('init', '1635305401957355');
+    fbq('init', '1722486366340073');
     fbq('track', 'PageView');
     </script>
     <noscript>
         <img height="1" width="1" style="display:none" alt=""
-             src="https://www.facebook.com/tr?id=1635305401957355&ev=PageView&noscript=1">
+             src="https://www.facebook.com/tr?id=1722486366340073&ev=PageView&noscript=1">
     </noscript>
 
     <style>
@@ -202,8 +202,9 @@
         var INVITE_HASH   = 'Rru-abFATts2NTA1';                 // t.me/+ ke baad wala hissa
         var WEB_LINK      = 'https://t.me/+' + INVITE_HASH;     // fallback
         var APP_LINK      = 'tg://join?invite=' + INVITE_HASH;  // seedha Telegram app
-        var CAPI_ENDPOINT = '';   // Server endpoint ho to yahan daalo, e.g. '/api/capi'. Khali = sirf Pixel.
-        var FALLBACK_MS   = 1500; // app na khule to itni der baad web link
+        var CAPI_ENDPOINT = '/api/capi';                        // Server endpoint connect kar diya gaya hai
+        var FALLBACK_MS   = 2800; // Mobile OS prompt clash se bachne ke liye safe fallback window (2.8s)
+        var TRACK_DELAY   = 500;  // Pixel request poori dispatch hone ke liye safe gap (500ms)
         // ----------------------------
 
         var btn = document.getElementById('joinBtn');
@@ -276,30 +277,37 @@
 
         function openTelegram() {
             var timer = null;
+            var startTime = Date.now();
 
             function cleanup() {
                 if (timer) { clearTimeout(timer); timer = null; }
-                document.removeEventListener('visibilitychange', onHide);
+                document.removeEventListener('visibilitychange', onVisibilityChange);
                 window.removeEventListener('pagehide', cleanup);
                 window.removeEventListener('blur', cleanup);
             }
-            function onHide() {
-                if (document.hidden) cleanup(); // app khul gaya, fallback ki zaroorat nahi
+            function onVisibilityChange() {
+                // Agar user app mein switch kar gaya ya screen hide hui
+                if (document.hidden) cleanup();
             }
 
-            document.addEventListener('visibilitychange', onHide);
+            document.addEventListener('visibilitychange', onVisibilityChange);
             window.addEventListener('pagehide', cleanup);
             window.addEventListener('blur', cleanup);
 
-            // App nahi khula to web link par bhejo
+            // Pehle seedha Telegram app open karne ki koshish karein
+            window.location.href = APP_LINK;
+
+            // App na hone par fallback window (prompt clash se bachne ke liye 2.8s wait)
             timer = setTimeout(function () {
+                var elapsed = Date.now() - startTime;
                 cleanup();
                 fallbackBox.style.display = 'block';
-                if (!document.hidden) window.location.href = WEB_LINK;
-            }, FALLBACK_MS);
 
-            // Pehle seedha app kholne ki koshish
-            window.location.href = APP_LINK;
+                // Agar page visible raha aur user app mein nahi gaya, tabhi web link par bhejein
+                if (!document.hidden && elapsed < (FALLBACK_MS + 1000)) {
+                    window.location.href = WEB_LINK;
+                }
+            }, FALLBACK_MS);
         }
 
         btn.addEventListener('click', function (e) {
@@ -310,14 +318,14 @@
 
             trackLeadOnce();
 
-            // Pixel request nikalne ke liye chhota sa gap
-            setTimeout(openTelegram, 250);
+            // Pixel aur CAPI network request safely nikalne ke liye 500ms ka buffer
+            setTimeout(openTelegram, TRACK_DELAY);
 
-            // Wapas aane par button dobara chale
+            // User wapas page par aaye to button dubara active ho jaye
             setTimeout(function () {
                 busy = false;
                 btn.classList.remove('is-loading');
-            }, 3000);
+            }, 4000);
         });
     })();
     </script>
